@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG-20251031-WA0137_jpg.rf.0973d049867cea03cd1020edf37f30de.jpg</filename>
+	<path>IMG-20251031-WA0137_jpg.rf.0973d049867cea03cd1020edf37f30de.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Rickshaw</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>6</xmin>
+			<xmax>549</xmax>
+			<ymin>1</ymin>
+			<ymax>641</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

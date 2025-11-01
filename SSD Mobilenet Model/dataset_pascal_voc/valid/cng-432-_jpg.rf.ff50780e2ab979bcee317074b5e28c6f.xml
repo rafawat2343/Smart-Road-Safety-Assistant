@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>cng-432-_jpg.rf.ff50780e2ab979bcee317074b5e28c6f.jpg</filename>
+	<path>cng-432-_jpg.rf.ff50780e2ab979bcee317074b5e28c6f.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>CNG</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>42</xmin>
+			<xmax>613</xmax>
+			<ymin>65</ymin>
+			<ymax>572</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

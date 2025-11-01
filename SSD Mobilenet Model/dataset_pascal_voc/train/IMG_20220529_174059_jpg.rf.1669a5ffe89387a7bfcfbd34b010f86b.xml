@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG_20220529_174059_jpg.rf.1669a5ffe89387a7bfcfbd34b010f86b.jpg</filename>
+	<path>IMG_20220529_174059_jpg.rf.1669a5ffe89387a7bfcfbd34b010f86b.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Easybike</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>392</xmin>
+			<xmax>564</xmax>
+			<ymin>241</ymin>
+			<ymax>376</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

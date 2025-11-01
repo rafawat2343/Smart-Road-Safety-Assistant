@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG_20220527_180419_jpg.rf.e885471e45d947f0b71a0b490b6f6fbb.jpg</filename>
+	<path>IMG_20220527_180419_jpg.rf.e885471e45d947f0b71a0b490b6f6fbb.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Micro-Bus</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>344</xmin>
+			<xmax>461</xmax>
+			<ymin>406</ymin>
+			<ymax>483</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

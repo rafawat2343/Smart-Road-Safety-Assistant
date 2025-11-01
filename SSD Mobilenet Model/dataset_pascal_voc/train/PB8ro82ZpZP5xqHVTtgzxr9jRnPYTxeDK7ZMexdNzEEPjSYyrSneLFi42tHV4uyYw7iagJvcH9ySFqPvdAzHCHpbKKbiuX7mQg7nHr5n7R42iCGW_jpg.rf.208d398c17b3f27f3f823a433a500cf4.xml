@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>PB8ro82ZpZP5xqHVTtgzxr9jRnPYTxeDK7ZMexdNzEEPjSYyrSneLFi42tHV4uyYw7iagJvcH9ySFqPvdAzHCHpbKKbiuX7mQg7nHr5n7R42iCGW_jpg.rf.208d398c17b3f27f3f823a433a500cf4.jpg</filename>
+	<path>PB8ro82ZpZP5xqHVTtgzxr9jRnPYTxeDK7ZMexdNzEEPjSYyrSneLFi42tHV4uyYw7iagJvcH9ySFqPvdAzHCHpbKKbiuX7mQg7nHr5n7R42iCGW_jpg.rf.208d398c17b3f27f3f823a433a500cf4.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Double decker</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>1</xmin>
+			<xmax>626</xmax>
+			<ymin>83</ymin>
+			<ymax>494</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

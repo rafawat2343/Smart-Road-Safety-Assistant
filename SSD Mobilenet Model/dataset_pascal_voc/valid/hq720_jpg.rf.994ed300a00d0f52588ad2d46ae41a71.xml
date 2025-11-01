@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>hq720_jpg.rf.994ed300a00d0f52588ad2d46ae41a71.jpg</filename>
+	<path>hq720_jpg.rf.994ed300a00d0f52588ad2d46ae41a71.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Double decker</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>197</xmin>
+			<xmax>467</xmax>
+			<ymin>107</ymin>
+			<ymax>499</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>
