@@ -12,7 +12,9 @@ import 'session_manager.dart';
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  FirebaseAuth.instance.setLanguageCode('en');
   runApp(const DriveMindApp());
+
 }
 
 class DriveMindApp extends StatelessWidget {
@@ -60,7 +62,9 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
   Future<void> _navigate() async {
     // Wait 3 seconds for splash animation
+
     await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
     User? user = FirebaseAuth.instance.currentUser;
 
     final hasSeenCarousel = await widget.checkCarousel();
