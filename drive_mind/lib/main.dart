@@ -1,11 +1,20 @@
+import 'package:drive_mind/home.dart';
+import 'package:drive_mind/session_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'splash.dart'; // <-- New splash screen
 import 'carousel.dart';
 import 'login.dart';
+import 'session_manager.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseAuth.instance.setLanguageCode('en');
   runApp(const DriveMindApp());
+
 }
 
 class DriveMindApp extends StatelessWidget {
@@ -53,17 +62,37 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
   Future<void> _navigate() async {
     // Wait 3 seconds for splash animation
+
     await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    User? user = FirebaseAuth.instance.currentUser;
 
     final hasSeenCarousel = await widget.checkCarousel();
 
-    if (mounted) {
+    if (!hasSeenCarousel) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              hasSeenCarousel ? const LoginPage() : const Carousel(),
+          builder: (_) => const Carousel(),
         ),
+      );
+    }
+    if (user ==null)
+      {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const LoginPage(),
+          )
+        );
+      }
+    else{
+      SessionController().userId = user.uid.toString();
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const HomePage(),
+          )
       );
     }
   }

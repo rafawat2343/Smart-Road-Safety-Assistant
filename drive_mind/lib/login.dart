@@ -1,3 +1,5 @@
+import 'package:drive_mind/session_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'home.dart'; // Navigation to HomePage
 import 'register.dart'; // Navigation to RegisterPage
@@ -16,6 +18,50 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true; // 👁 Toggle password visibility
+
+  Future <void> signInToFirebase() async
+  {
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+      ).then((value){
+        SessionController().userId = value.user!.uid.toString();
+      });
+      //show successful message
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Login Successful"),
+              backgroundColor: Colors.green,
+          )
+      );
+
+      //Navigate to Home Page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomePage(),
+        ),
+      );
+
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No user found for that email.'))
+        );
+      } else if (e.code == 'wrong-password') {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Wrong password provided for that user.'))
+        );
+      }
+      else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: ${e.message}')),
+        );
+      }
+    }
+  }
 
   // ✅ Email validation using RegEx
   bool _isValidEmail(String email) {
@@ -206,14 +252,9 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {
+                        onPressed: () async{
                           if (_formKey.currentState!.validate()) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HomePage(),
-                              ),
-                            );
+                            await signInToFirebase();
                           }
                         },
                         child: const Text(
@@ -232,6 +273,7 @@ class _LoginPageState extends State<LoginPage> {
                     Center(
                       child: GestureDetector(
                         onTap: () {
+                          //Navigate to Register Page
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(

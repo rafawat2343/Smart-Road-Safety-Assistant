@@ -1,5 +1,8 @@
+import 'package:drive_mind/session_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -48,6 +51,76 @@ class _RegisterPageState extends State<RegisterPage> {
     final passwordRegex =
         RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,24}$');
     return passwordRegex.hasMatch(password);
+  }
+
+  Future <void> signUpToFirebase() async{
+    try {
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      ).then((value) {
+        SessionController().userId = value.user!.uid.toString();
+        //getting user info using uid that has been created in firebase auth with email and password
+        String uid = value.user!.uid;
+
+        //Save user data to Firestore
+         FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'uid': uid,
+          'username': _usernameController.text.trim(),
+          'full_name': _fullnameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'security_question': _selectedSecurityQuestion,
+          'security_answer': _securityAnswerController.text.trim(),
+          'create_at': DateTime.now(),
+
+        });
+      }
+
+      );
+      //getting user info using uid that has been created in firebase auth with email and password
+      /*String uid = credential.user!.uid;
+
+      //Save user data to Firestore
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'username': _usernameController.text.trim(),
+        'full_name': _fullnameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'security_question': _selectedSecurityQuestion,
+        'security_answer': _securityAnswerController.text.trim(),
+        'create_at': DateTime.now(),
+
+      });*/
+
+      //Showing Login Success in a snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Registration Successful"),
+            backgroundColor: Colors.green,
+          ),
+      );
+
+      //Redirect to Login Page
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The password provided is too weak.'))
+        );
+      } else if (e.code == 'email-already-in-use') {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('The account already exists for that email.'))
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
@@ -282,24 +355,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           backgroundColor: const Color(0xFFFF5252),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        onPressed: () {
+                        onPressed: () async {
                           if (_formKey.currentState!.validate()) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Registration successful!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-
-                            Future.delayed(const Duration(seconds: 1), () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => const LoginPage()),
-                              );
-                            });
+                            await signUpToFirebase();
                           }
                         },
                         child: const Text(
@@ -312,6 +373,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 24),
 
                     // ---------- Already Member ----------
