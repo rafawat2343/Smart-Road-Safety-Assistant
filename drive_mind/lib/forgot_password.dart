@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
 
@@ -17,113 +15,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _confirmPasswordController = TextEditingController();
 
   int _step = 1;
-
-  String? savedQuestion;
-  String? savedAnswer;
-  String? userEmail;
-  String? userId;
-
+  String? _selectedQuestion;
   bool _obscureNewPass = true;
   bool _obscureConfirmPass = true;
-  bool _loading = false;
 
-  // ----------------------------------------------------------
-  // Step 1: Check username and load stored security question
-  // ----------------------------------------------------------
-  Future<void> _checkUsername() async {
-    setState(() => _loading = true);
+  final List<String> _questions = [
+    "What is your favorite color?",
+    "What is your pet's name?",
+    "What city were you born in?",
+    "What is your mother's maiden name?",
+  ];
 
-    try {
-      var snap = await FirebaseFirestore.instance
-          .collection("Users")
-          .where("username", isEqualTo: _usernameController.text.trim())
-          .limit(1)
-          .get();
-
-      if (snap.docs.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Username not found!"),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _loading = false);
-        return;
-      }
-
-      var data = snap.docs.first;
-      userId = data.id;
-      savedQuestion = data["securityQuestion"];
-      savedAnswer = data["securityAnswer"];
-      userEmail = data["email"]; // needed to update password in auth
-
-      setState(() {
-        _step = 2;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-  }
-
-  // ----------------------------------------------------------
-  // Step 3: Update new password in Firebase Auth + Firestore
-  // ----------------------------------------------------------
-  Future<void> _updatePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Passwords do not match!"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-
-    try {
-      // Login user silently to update password
-      UserCredential
-      tempLogin = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: userEmail!,
-        password:
-            savedAnswer!, // using security answer as temp login is NOT recommended, but you requested fully offline reset
-      );
-
-      await tempLogin.user!.updatePassword(_newPasswordController.text.trim());
-
-      // Also update password in Firestore (if you store it)
-      await FirebaseFirestore.instance.collection("Users").doc(userId).update({
-        "password": _newPasswordController.text.trim(),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Password updated successfully!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-
-    setState(() => _loading = false);
-  }
-
-  // ----------------------------------------------------------
-  // BUILD UI
-  // ----------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,12 +33,71 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(),
+            // ---------- Top Curved Header ----------
+            ClipPath(
+              clipper: BottomWaveClipper(),
+              child: Container(
+                height: 330,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFFF8A80), Color(0xFFFF5252)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(
+                      Icons.lock_reset_rounded,
+                      color: Colors.white,
+                      size: 80,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      "Forgot Password",
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Recover your account securely",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
-                child: _buildStepContent(),
+                transitionBuilder: (child, animation) {
+                  final offsetAnimation =
+                      Tween<Offset>(
+                        begin: const Offset(1.0, 0.0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeInOut,
+                        ),
+                      );
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
+                  );
+                },
+                child: _buildStepContent(context),
               ),
             ),
           ],
@@ -145,179 +106,191 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  // Top header
-  Widget _buildHeader() {
-    return ClipPath(
-      clipper: BottomWaveClipper(),
-      child: Container(
-        height: 330,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF8A80), Color(0xFFFF5252)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.lock_reset_rounded, color: Colors.white, size: 80),
-            SizedBox(height: 10),
-            Text(
-              "Forgot Password",
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              "Recover your account securely",
-              style: TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget _buildStepContent(BuildContext context) {
+    switch (_step) {
+      case 1:
+        return _buildUsernameStep(context, key: const ValueKey(1));
+      case 2:
+        return _buildSecurityStep(context, key: const ValueKey(2));
+      case 3:
+        return _buildNewPasswordStep(context, key: const ValueKey(3));
+      default:
+        return Container();
+    }
   }
 
-  // Step content switcher
-  Widget _buildStepContent() {
-    if (_step == 1) return _buildUsernameStep();
-    if (_step == 2) return _buildSecurityStep();
-    return _buildNewPasswordStep();
-  }
-
-  // Step 1: Username
-  Widget _buildUsernameStep() {
+  // ---------- Step 1: Username ----------
+  Widget _buildUsernameStep(BuildContext context, {Key? key}) {
     return Column(
-      key: const ValueKey(1),
-      children: [
-        TextField(
-          controller: _usernameController,
-          decoration: const InputDecoration(
-            labelText: "Enter Username",
-            prefixIcon: Icon(Icons.person),
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _loading
-            ? const CircularProgressIndicator()
-            : _button("Continue", _checkUsername),
-      ],
-    );
-  }
-
-  // Step 2: Security question (fixed)
-  Widget _buildSecurityStep() {
-    return Column(
-      key: const ValueKey(2),
+      key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Your Security Question",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          "Username",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 10),
-
-        // Fixed question box
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(savedQuestion ?? "Loading..."),
-        ),
-
-        const SizedBox(height: 20),
-
+        const SizedBox(height: 6),
         TextField(
-          controller: _answerController,
-          decoration: const InputDecoration(
-            labelText: "Enter your answer",
-            prefixIcon: Icon(Icons.edit),
-            border: OutlineInputBorder(),
+          controller: _usernameController,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.person_outline),
+            hintText: "Enter your username",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-
-        const SizedBox(height: 20),
-
-        _loading
-            ? const CircularProgressIndicator()
-            : _button("Verify", () {
-                if (_answerController.text.trim().toLowerCase() ==
-                    savedAnswer!.toLowerCase()) {
-                  setState(() => _step = 3);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Incorrect answer!"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }),
+        const SizedBox(height: 24),
+        _buildNextButton("Continue", () {
+          if (_usernameController.text.isNotEmpty) {
+            setState(() => _step = 2);
+          }
+        }),
+        const SizedBox(height: 10),
+        _buildBackToLogin(context),
       ],
     );
   }
 
-  // Step 3: Set new password (NO EMAIL)
-  Widget _buildNewPasswordStep() {
+  // ---------- Step 2: Security Question ----------
+  Widget _buildSecurityStep(BuildContext context, {Key? key}) {
     return Column(
-      key: const ValueKey(3),
+      key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          "Security Question",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: _selectedQuestion,
+          items: _questions
+              .map((q) => DropdownMenuItem(value: q, child: Text(q)))
+              .toList(),
+          onChanged: (value) => setState(() => _selectedQuestion = value),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: const Icon(Icons.question_mark_rounded),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "Answer",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _answerController,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.edit_note_rounded),
+            hintText: "Enter your answer",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildNextButton("Verify", () {
+          if (_selectedQuestion != null &&
+              _answerController.text.trim().isNotEmpty) {
+            setState(() => _step = 3);
+          }
+        }),
+        const SizedBox(height: 10),
+        _buildBackToLogin(context),
+      ],
+    );
+  }
+
+  // ---------- Step 3: New Password ----------
+  Widget _buildNewPasswordStep(BuildContext context, {Key? key}) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "New Password",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
         TextField(
           controller: _newPasswordController,
           obscureText: _obscureNewPass,
           decoration: InputDecoration(
-            labelText: "New Password",
-            prefixIcon: const Icon(Icons.lock),
+            prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureNewPass ? Icons.visibility_off : Icons.visibility,
+                _obscureNewPass
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
               ),
               onPressed: () =>
                   setState(() => _obscureNewPass = !_obscureNewPass),
             ),
-            border: const OutlineInputBorder(),
+            hintText: "Enter new password",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 16),
+        const Text(
+          "Confirm Password",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
         TextField(
           controller: _confirmPasswordController,
           obscureText: _obscureConfirmPass,
           decoration: InputDecoration(
-            labelText: "Confirm Password",
-            prefixIcon: const Icon(Icons.lock),
+            prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureConfirmPass ? Icons.visibility_off : Icons.visibility,
+                _obscureConfirmPass
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
               ),
               onPressed: () =>
                   setState(() => _obscureConfirmPass = !_obscureConfirmPass),
             ),
-            border: const OutlineInputBorder(),
+            hintText: "Re-enter new password",
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         const SizedBox(height: 24),
-        _loading
-            ? const CircularProgressIndicator()
-            : _button("Update Password", _updatePassword),
+        _buildNextButton("Update Password", () {
+          if (_newPasswordController.text == _confirmPasswordController.text) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Password updated successfully!"),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Passwords do not match!"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }),
+        const SizedBox(height: 10),
+        _buildBackToLogin(context),
       ],
     );
   }
 
-  Widget _button(String text, VoidCallback onPressed) {
+  // ---------- Common Buttons ----------
+  Widget _buildNextButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF5252),
           padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         onPressed: onPressed,
         child: Text(
@@ -325,6 +298,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackToLogin(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginPage()),
+          );
+        },
+        child: const Text(
+          "Back to Login",
+          style: TextStyle(
+            color: Color(0xFFFF5252),
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -332,7 +326,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 }
 
-// Wave header (unchanged)
+// ---------- Custom Wave Header ----------
 class BottomWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

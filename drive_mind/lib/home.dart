@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
 import 'session_manager.dart';
-import 'profile.dart';
-import 'package:image_picker/image_picker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -40,8 +38,9 @@ class _HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
                   onPressed: () {
                     FirebaseAuth auth = FirebaseAuth.instance;
-                    auth.signOut().then((value) {
-                      SessionController().userId = '';
+                    auth.signOut().then((value)
+                    {
+                      SessionController().userId ='';
                     });
                     Navigator.pushReplacement(
                       context,
@@ -309,57 +308,30 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const Icon(
+            Icons.camera_alt_rounded,
+            size: 80,
+            color: Color(0xFFEF4444),
+          ),
+          const SizedBox(height: 16),
           const Text(
             "Start Detection Mode",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 8),
+          const Text("Open camera to detect lane or traffic violations."),
           const SizedBox(height: 20),
-
-          // BIG ROUND BUTTON
-          InkWell(
-            onTap: () async {
-              // OPEN CAMERA
-              final pickedFile = await ImagePicker().pickImage(
-                source: ImageSource.camera,
+          ElevatedButton.icon(
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text("Start Detection"),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Starting AI Detection (YOLOv8)..."),
+                ),
               );
-
-              if (pickedFile != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Camera opened! Processing...")),
-                );
-                // TODO: Send pickedFile.path to YOLO model
-              }
+              // TODO: Integrate YOLOv8 model or TensorFlow plugin here
             },
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.red.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.camera_alt_rounded, size: 60, color: Colors.white),
-                  SizedBox(height: 10),
-                  Text(
-                    "Start Detection",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -387,6 +359,20 @@ class _HomePageState extends State<HomePage> {
 
   // --- Profile Page ---
   Widget _buildProfile() {
-    return const ProfilePage();
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.person_rounded, size: 80, color: Color(0xFF2563EB)),
+          SizedBox(height: 16),
+          Text(
+            "User Profile",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text("View or update your profile information."),
+        ],
+      ),
+    );
   }
 }
