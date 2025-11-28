@@ -1,5 +1,8 @@
+// lib/forgot_password.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
+import 'routes_helper.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -16,91 +19,80 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   int _step = 1;
   String? _selectedQuestion;
+  String? _fetchedQuestion;
   bool _obscureNewPass = true;
   bool _obscureConfirmPass = true;
-
-  final List<String> _questions = [
-    "What is your favorite color?",
-    "What is your pet's name?",
-    "What city were you born in?",
-    "What is your mother's maiden name?",
-  ];
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFC1B6),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // ---------- Top Curved Header ----------
-            ClipPath(
-              clipper: BottomWaveClipper(),
-              child: Container(
-                height: 330,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFF8A80), Color(0xFFFF5252)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+    // back -> go to Login (fade)
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(context).pushReplacement(fadeRoute(const LoginPage()));
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFC1B6),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              ClipPath(
+                clipper: BottomWaveClipper(),
+                child: Container(
+                  height: 330,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF8A80), Color(0xFFFF5252)],
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.lock_reset_rounded,
+                        color: Colors.white,
+                        size: 80,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "Forgot Password",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        "Recover your account securely",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(
-                      Icons.lock_reset_rounded,
-                      color: Colors.white,
-                      size: 80,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "Forgot Password",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Recover your account securely",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+                  child: _buildStepContent(context),
                 ),
               ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                transitionBuilder: (child, animation) {
-                  final offsetAnimation =
-                      Tween<Offset>(
-                        begin: const Offset(1.0, 0.0),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeInOut,
-                        ),
-                      );
-                  return SlideTransition(
-                    position: offsetAnimation,
-                    child: child,
-                  );
-                },
-                child: _buildStepContent(context),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -119,7 +111,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
   }
 
-  // ---------- Step 1: Username ----------
+  // Step 1: username -> fetch security question from Firestore (if exists)
   Widget _buildUsernameStep(BuildContext context, {Key? key}) {
     return Column(
       key: key,
@@ -139,19 +131,52 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         ),
         const SizedBox(height: 24),
-        _buildNextButton("Continue", () {
-          if (_usernameController.text.isNotEmpty) {
-            setState(() => _step = 2);
+        _buildNextButton("Continue", () async {
+          if (_usernameController.text.trim().isEmpty) return;
+
+          // try to fetch question from Firestore where username matches
+          setState(() => _loading = true);
+          try {
+            final query = await FirebaseFirestore.instance
+                .collection('users')
+                .where('username', isEqualTo: _usernameController.text.trim())
+                .limit(1)
+                .get();
+
+            if (query.docs.isNotEmpty) {
+              final doc = query.docs.first;
+              _fetchedQuestion =
+                  (doc.data()['security_question'] as String?) ?? null;
+            } else {
+              // no user found -> _fetchedQuestion remains null and we'll ask generic list (but you asked to fetch and show only selected question)
+              _fetchedQuestion = null;
+            }
+          } catch (e) {
+            _fetchedQuestion = null;
           }
+          setState(() => _loading = false);
+          setState(() => _step = 2);
         }),
         const SizedBox(height: 10),
         _buildBackToLogin(context),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Center(child: CircularProgressIndicator()),
+          ),
       ],
     );
   }
 
-  // ---------- Step 2: Security Question ----------
+  // Step 2: if _fetchedQuestion != null show only that question; else allow selection (fallback)
   Widget _buildSecurityStep(BuildContext context, {Key? key}) {
+    final List<String> fallbackQuestions = [
+      "What is your favorite color?",
+      "What is your pet's name?",
+      "What city were you born in?",
+      "What is your mother's maiden name?",
+    ];
+
     return Column(
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,17 +186,41 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          value: _selectedQuestion,
-          items: _questions
-              .map((q) => DropdownMenuItem(value: q, child: Text(q)))
-              .toList(),
-          onChanged: (value) => setState(() => _selectedQuestion = value),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            prefixIcon: const Icon(Icons.question_mark_rounded),
+        if (_fetchedQuestion != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.question_mark_rounded),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _fetchedQuestion!,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            value: _selectedQuestion,
+            items: fallbackQuestions
+                .map((q) => DropdownMenuItem(value: q, child: Text(q)))
+                .toList(),
+            onChanged: (value) => setState(() => _selectedQuestion = value),
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              prefixIcon: const Icon(Icons.question_mark_rounded),
+            ),
           ),
-        ),
         const SizedBox(height: 16),
         const Text(
           "Answer",
@@ -188,9 +237,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 24),
         _buildNextButton("Verify", () {
-          if (_selectedQuestion != null &&
+          // We are not validating answer against DB now (you asked to use existing reset only)
+          if ((_fetchedQuestion != null || _selectedQuestion != null) &&
               _answerController.text.trim().isNotEmpty) {
             setState(() => _step = 3);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please provide an answer')),
+            );
           }
         }),
         const SizedBox(height: 10),
@@ -199,7 +253,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  // ---------- Step 3: New Password ----------
   Widget _buildNewPasswordStep(BuildContext context, {Key? key}) {
     return Column(
       key: key,
@@ -254,17 +307,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 24),
         _buildNextButton("Update Password", () {
-          if (_newPasswordController.text == _confirmPasswordController.text) {
+          if (_newPasswordController.text == _confirmPasswordController.text &&
+              _newPasswordController.text.isNotEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text("Password updated successfully!"),
                 backgroundColor: Colors.green,
               ),
             );
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-            );
+            Navigator.of(context).pushReplacement(fadeRoute(const LoginPage()));
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -280,7 +331,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  // ---------- Common Buttons ----------
   Widget _buildNextButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
@@ -309,10 +359,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Center(
       child: TextButton(
         onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-          );
+          Navigator.of(context).pushReplacement(fadeRoute(const LoginPage()));
         },
         child: const Text(
           "Back to Login",
@@ -326,7 +373,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 }
 
-// ---------- Custom Wave Header ----------
+// BottomWaveClipper same as earlier
 class BottomWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

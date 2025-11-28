@@ -1,8 +1,9 @@
-import 'package:drive_mind/session_manager.dart';
+// lib/home.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
-import 'session_manager.dart';
+import 'profile.dart';
+import 'package:image_picker/image_picker.dart'; // ensure in pubspec if used
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,75 +14,79 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-
   final List<String> _titles = ["Dashboard", "Detection", "Records", "Profile"];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: Text(
-          _titles[_selectedIndex],
-          style: const TextStyle(
-            color: Color(0xFF1E293B),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+    // WillPopScope: if not on dashboard, go to dashboard; else allow exit
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedIndex != 0) {
+          setState(() => _selectedIndex = 0);
+          return false;
+        }
+        return true; // allow system pop (exit app)
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F4F6),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          title: Text(
+            _titles[_selectedIndex],
+            style: const TextStyle(
+              color: Color(0xFF1E293B),
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
           ),
+          centerTitle: true,
+          actions: _selectedIndex == 3
+              ? [
+                  IconButton(
+                    icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
+                    onPressed: () {
+                      FirebaseAuth auth = FirebaseAuth.instance;
+                      auth.signOut().then((value) {});
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ]
+              : null,
         ),
-        centerTitle: true,
-        actions: _selectedIndex == 3
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-                  onPressed: () {
-                    FirebaseAuth auth = FirebaseAuth.instance;
-                    auth.signOut().then((value)
-                    {
-                      SessionController().userId ='';
-                    });
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginPage(),
-                      ),
-                    );
-                  },
-                ),
-              ]
-            : null,
-      ),
-
-      body: _buildBody(),
-
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: const Color(0xFF4ADE80),
-        unselectedItemColor: Colors.grey.shade500,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt_rounded),
-            label: "Detect",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_rounded),
-            label: "Records",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            label: "Profile",
-          ),
-        ],
+        body: _buildBody(),
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          selectedItemColor: const Color(0xFF4ADE80),
+          unselectedItemColor: Colors.grey.shade500,
+          showUnselectedLabels: true,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_rounded),
+              label: "Home",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.camera_alt_rounded),
+              label: "Detect",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history_rounded),
+              label: "Records",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              label: "Profile",
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -95,13 +100,12 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return _buildRecords();
       case 3:
-        return _buildProfile();
+        return const ProfilePage();
       default:
         return _buildDashboard();
     }
   }
 
-  // --- Dashboard ---
   Widget _buildDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -118,6 +122,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHeaderCard() {
+    /* your existing widget code */
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -157,6 +162,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildQuickActions() {
+    /* your existing widget code */
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -302,43 +308,67 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Detection Page ---
   Widget _buildDetection() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.camera_alt_rounded,
-            size: 80,
-            color: Color(0xFFEF4444),
-          ),
-          const SizedBox(height: 16),
           const Text(
             "Start Detection Mode",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          const Text("Open camera to detect lane or traffic violations."),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text("Start Detection"),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Starting AI Detection (YOLOv8)..."),
-                ),
+          // BIG ROUND BUTTON centered
+          InkWell(
+            onTap: () async {
+              // Open camera using image_picker (you already referenced earlier)
+              final pickedFile = await ImagePicker().pickImage(
+                source: ImageSource.camera,
               );
-              // TODO: Integrate YOLOv8 model or TensorFlow plugin here
+              if (pickedFile != null && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Camera opened! Processing...")),
+                );
+                // TODO: process pickedFile.path with detection model
+              }
             },
+            borderRadius: BorderRadius.circular(100),
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.camera_alt_rounded, size: 60, color: Colors.white),
+                  SizedBox(height: 10),
+                  Text(
+                    "Start Detection",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- Records Page ---
   Widget _buildRecords() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -354,25 +384,6 @@ class _HomePageState extends State<HomePage> {
           subtitle: Text("Shared to database"),
         ),
       ],
-    );
-  }
-
-  // --- Profile Page ---
-  Widget _buildProfile() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.person_rounded, size: 80, color: Color(0xFF2563EB)),
-          SizedBox(height: 16),
-          Text(
-            "User Profile",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text("View or update your profile information."),
-        ],
-      ),
     );
   }
 }
