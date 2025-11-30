@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
 import 'profile.dart';
-import 'package:image_picker/image_picker.dart'; // ensure in pubspec if used
+import 'package:image_picker/image_picker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -41,24 +41,36 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           centerTitle: true,
+
+          // FIXED — added comma here ↓
+          leading: (_selectedIndex ==0) ? null:
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            onPressed: () {
+              setState(() => _selectedIndex = 0);
+            },
+          ),
+
+
           actions: _selectedIndex == 3
               ? [
-                  IconButton(
-                    icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-                    onPressed: () {
-                      FirebaseAuth auth = FirebaseAuth.instance;
-                      auth.signOut().then((value) {});
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginPage(),
-                        ),
-                      );
-                    },
+            IconButton(
+              icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
+              onPressed: () {
+                FirebaseAuth auth = FirebaseAuth.instance;
+                auth.signOut().then((value) {});
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
                   ),
-                ]
+                );
+              },
+            ),
+          ]
               : null,
         ),
+
         body: _buildBody(),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,

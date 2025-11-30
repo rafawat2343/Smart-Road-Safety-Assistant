@@ -10,43 +10,24 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  String username = "";
-  String fullName = "";
-  String email = "";
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadUserData();
-  }
-
-  Future<void> loadUserData() async {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) return;
-
-    email = user.email ?? "No email";
-
-    // Fetching user details from Firestore
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
-    if (snapshot.exists) {
-      username = snapshot["username"] ?? "";
-      fullName = snapshot["fullName"] ?? "";
-    }
-
-    setState(() => loading = false);
-  }
+  User? user = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("No user logged in")),
+      );
+    }
+
+    final Stream<DocumentSnapshot> userStream = FirebaseFirestore.instance
+        .collection("users")
+        .doc(user!.uid)
+        .snapshots();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
+      /*appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -58,28 +39,43 @@ class _ProfilePageState extends State<ProfilePage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-      ),
+      ),*/
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: userStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          } else if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("No data found"));
+          }
 
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Color(0xFF4ADE80),
-                    child: Icon(Icons.person, size: 60, color: Colors.white),
-                  ),
-                  const SizedBox(height: 20),
-                  _infoCard("Username", username, Icons.person_outline),
-                  const SizedBox(height: 16),
-                  _infoCard("Full Name", fullName, Icons.badge_outlined),
-                  const SizedBox(height: 16),
-                  _infoCard("Email", email, Icons.email_outlined),
-                ],
-              ),
+          final data = snapshot.data!;
+          final username = data["username"] ?? "";
+          final fullName = data["full_name"] ?? ""; // <-- match your Firestore field
+          final email = user!.email ?? "No email";
+
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Color(0xFF4ADE80),
+                  child: Icon(Icons.person, size: 60, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                _infoCard("Username", username, Icons.person_outline),
+                const SizedBox(height: 16),
+                _infoCard("Full Name", fullName, Icons.badge_outlined),
+                const SizedBox(height: 16),
+                _infoCard("Email", email, Icons.email_outlined),
+              ],
             ),
+          );
+        },
+      ),
     );
   }
 

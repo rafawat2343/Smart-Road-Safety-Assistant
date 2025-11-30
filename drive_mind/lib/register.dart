@@ -62,6 +62,8 @@ class _RegisterPageState extends State<RegisterPage> {
             password: _passwordController.text.trim(),
           );
 
+      await credential.user!.sendEmailVerification();
+
       String uid = credential.user!.uid;
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -72,12 +74,13 @@ class _RegisterPageState extends State<RegisterPage> {
         'security_question': _selectedSecurityQuestion,
         'security_answer': _securityAnswerController.text.trim(),
         'created_at': DateTime.now(),
+        'email_verified': false, //store verification status
       });
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Registration Successful"),
+          content: Text("Registration Successful!Please check your email to verify your account."),
           backgroundColor: Colors.green,
         ),
       );
