@@ -12,7 +12,7 @@ import 'session_manager.dart';
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  FirebaseAuth.instance.setLanguageCode('en');
+  await FirebaseAuth.instance.setLanguageCode('en');
   runApp(const DriveMindApp());
 
 }
