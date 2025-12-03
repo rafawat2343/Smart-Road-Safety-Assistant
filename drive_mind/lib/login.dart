@@ -61,6 +61,8 @@ class _LoginPageState extends State<LoginPage> {
           .signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim());
+      if(!mounted) return;
+
 
       final user = FirebaseAuth.instance.currentUser;
       await refreshEmailVerification();
@@ -132,6 +134,8 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } on FirebaseAuthException catch (e) {
+      if(!mounted) return;
+      print("LOGIN ERROR: ${e.code}");
       if (e.code == 'user-not-found') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No user found for that email.')),
