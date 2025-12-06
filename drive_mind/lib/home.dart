@@ -2,7 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'detection_screen.dart';
+//import 'detection_screen.dart';
 import 'login.dart';
 import 'profile.dart';
 //import 'package:image_picker/image_picker.dart';

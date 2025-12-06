@@ -3,6 +3,7 @@ package com.example.drive_mind
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.SystemClock
+import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
@@ -37,75 +38,97 @@ class Detector(
         .build()
 
     fun setup() {
-        val model = FileUtil.loadMappedFile(context, modelPath)
-        val options = Interpreter.Options()
-        options.numThreads = 4
-        interpreter = Interpreter(model, options)
-
-        val inputShape = interpreter?.getInputTensor(0)?.shape() ?: return
-        val outputShape = interpreter?.getOutputTensor(0)?.shape() ?: return
-
-        tensorWidth = inputShape[1]
-        tensorHeight = inputShape[2]
-        numChannel = outputShape[1]
-        numElements = outputShape[2]
-
         try {
-            val inputStream: InputStream = context.assets.open(labelPath)
-            val reader = BufferedReader(InputStreamReader(inputStream))
+            val model = FileUtil.loadMappedFile(context, modelPath)
+            val options = Interpreter.Options()
+            options.numThreads = 4
+            interpreter = Interpreter(model, options)
 
-            var line: String? = reader.readLine()
-            while (line != null && line != "") {
-                labels.add(line)
-                line = reader.readLine()
+            val inputShape = interpreter?.getInputTensor(0)?.shape() ?: return
+            val outputShape = interpreter?.getOutputTensor(0)?.shape() ?: return
+
+            tensorWidth = inputShape[1]
+            tensorHeight = inputShape[2]
+            numChannel = outputShape[1]
+            numElements = outputShape[2]
+
+            Log.d("Detector", "Model loaded: ${tensorWidth}x${tensorHeight}, channels=$numChannel, elements=$numElements")
+
+            try {
+                val inputStream: InputStream = context.assets.open(labelPath)
+                val reader = BufferedReader(InputStreamReader(inputStream))
+
+                var line: String? = reader.readLine()
+                while (line != null && line != "") {
+                    labels.add(line)
+                    line = reader.readLine()
+                }
+
+                reader.close()
+                inputStream.close()
+                Log.d("Detector", "Loaded ${labels.size} labels")
+            } catch (e: IOException) {
+                Log.e("Detector", "Error loading labels: ${e.message}")
+                // Create default labels
+                for (i in 0 until numChannel) {
+                    labels.add("Class_$i")
+                }
             }
-
-            reader.close()
-            inputStream.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
+        } catch (e: Exception) {
+            Log.e("Detector", "Error in setup: ${e.message}", e)
         }
     }
 
     fun clear() {
-        interpreter?.close()
-        interpreter = null
+        try {
+            interpreter?.close()
+            interpreter = null
+            Log.d("Detector", "Interpreter closed")
+        } catch (e: Exception) {
+            Log.e("Detector", "Error closing interpreter: ${e.message}")
+        }
     }
 
     fun detect(frame: Bitmap) {
-        interpreter ?: return
-        if (tensorWidth == 0) return
-        if (tensorHeight == 0) return
-        if (numChannel == 0) return
-        if (numElements == 0) return
+        try {
+            val interpreter = interpreter ?: run {
+                Log.w("Detector", "Interpreter is null")
+                return
+            }
+            
+            if (tensorWidth == 0 || tensorHeight == 0 || numChannel == 0 || numElements == 0) {
+                Log.w("Detector", "Invalid tensor dimensions")
+                return
+            }
 
-        var inferenceTime = SystemClock.uptimeMillis()
+            var inferenceTime = SystemClock.uptimeMillis()
 
-        val resizedBitmap = Bitmap.createScaledBitmap(frame, tensorWidth, tensorHeight, false)
+            val resizedBitmap = Bitmap.createScaledBitmap(frame, tensorWidth, tensorHeight, false)
 
-        val tensorImage = TensorImage(DataType.FLOAT32)
-        tensorImage.load(resizedBitmap)
-        val processedImage = imageProcessor.process(tensorImage)
-        val imageBuffer = processedImage.buffer
+            val tensorImage = TensorImage(DataType.FLOAT32)
+            tensorImage.load(resizedBitmap)
+            val processedImage = imageProcessor.process(tensorImage)
+            val imageBuffer = processedImage.buffer
 
-        val output = TensorBuffer.createFixedSize(intArrayOf(1 , numChannel, numElements), OUTPUT_IMAGE_TYPE)
-        interpreter?.run(imageBuffer, output.buffer)
+            val output = TensorBuffer.createFixedSize(intArrayOf(1, numChannel, numElements), OUTPUT_IMAGE_TYPE)
+            interpreter.run(imageBuffer, output.buffer)
 
+            val bestBoxes = bestBox(output.floatArray)
+            inferenceTime = SystemClock.uptimeMillis() - inferenceTime
 
-        val bestBoxes = bestBox(output.floatArray)
-        inferenceTime = SystemClock.uptimeMillis() - inferenceTime
+            if (bestBoxes == null) {
+                detectorListener.onEmptyDetect()
+                return
+            }
 
-
-        if (bestBoxes == null) {
+            detectorListener.onDetect(bestBoxes, inferenceTime)
+        } catch (e: Exception) {
+            Log.e("Detector", "Error in detect: ${e.message}", e)
             detectorListener.onEmptyDetect()
-            return
         }
-
-        detectorListener.onDetect(bestBoxes, inferenceTime)
     }
 
-    private fun bestBox(array: FloatArray) : List<BoundingBox>? {
-
+    private fun bestBox(array: FloatArray): List<BoundingBox>? {
         val boundingBoxes = mutableListOf<BoundingBox>()
 
         for (c in 0 until numElements) {
@@ -113,7 +136,7 @@ class Detector(
             var maxIdx = -1
             var j = 4
             var arrayIdx = c + numElements * j
-            while (j < numChannel){
+            while (j < numChannel) {
                 if (array[arrayIdx] > maxConf) {
                     maxConf = array[arrayIdx]
                     maxIdx = j - 4
@@ -123,15 +146,16 @@ class Detector(
             }
 
             if (maxConf > CONFIDENCE_THRESHOLD) {
-                val clsName = labels[maxIdx]
+                val clsName = if (maxIdx >= 0 && maxIdx < labels.size) labels[maxIdx] else "Unknown"
                 val cx = array[c] // 0
                 val cy = array[c + numElements] // 1
                 val w = array[c + numElements * 2]
                 val h = array[c + numElements * 3]
-                val x1 = cx - (w/2F)
-                val y1 = cy - (h/2F)
-                val x2 = cx + (w/2F)
-                val y2 = cy + (h/2F)
+                val x1 = cx - (w / 2F)
+                val y1 = cy - (h / 2F)
+                val x2 = cx + (w / 2F)
+                val y2 = cy + (h / 2F)
+                
                 if (x1 < 0F || x1 > 1F) continue
                 if (y1 < 0F || y1 > 1F) continue
                 if (x2 < 0F || x2 > 1F) continue
@@ -152,11 +176,11 @@ class Detector(
         return applyNMS(boundingBoxes)
     }
 
-    private fun applyNMS(boxes: List<BoundingBox>) : MutableList<BoundingBox> {
+    private fun applyNMS(boxes: List<BoundingBox>): MutableList<BoundingBox> {
         val sortedBoxes = boxes.sortedByDescending { it.cnf }.toMutableList()
         val selectedBoxes = mutableListOf<BoundingBox>()
 
-        while(sortedBoxes.isNotEmpty()) {
+        while (sortedBoxes.isNotEmpty()) {
             val first = sortedBoxes.first()
             selectedBoxes.add(first)
             sortedBoxes.remove(first)

@@ -42,13 +42,19 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
         textPaint.style = Paint.Style.FILL
         textPaint.textSize = 50f
 
-        boxPaint.color = ContextCompat.getColor(context!!, R.color.bounding_box_color)
+        if (context != null) {
+            boxPaint.color = ContextCompat.getColor(context!!, R.color.bounding_box_color)
+        } else {
+            boxPaint.color = Color.GREEN
+        }
         boxPaint.strokeWidth = 8F
         boxPaint.style = Paint.Style.STROKE
     }
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
+
+        if (width <= 0 || height <= 0) return
 
         results.forEach {
             val left = it.x1 * width

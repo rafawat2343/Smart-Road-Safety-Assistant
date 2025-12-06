@@ -8,30 +8,35 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.*
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.surendramaran.yolov8tflite.Constants.LABELS_PATH
-import com.surendramaran.yolov8tflite.Constants.MODEL_PATH
-import com.surendramaran.yolov8tflite.databinding.ActivityMainBinding
+import com.example.drive_mind.Constants.LABELS_PATH
+import com.example.drive_mind.Constants.MODEL_PATH
+import com.example.drive_mind.databinding.ActivityDetectionBinding
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class NativeDetectionActivity : AppCompatActivity(), Detector.DetectorListener {
+    private lateinit var binding: ActivityDetectionBinding
+    private val isFrontCamera = false
 
-    private lateinit var binding: ActivityMainBinding
     private var preview: Preview? = null
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
-
     private lateinit var detector: Detector
+
     private lateinit var cameraExecutor: ExecutorService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        binding = ActivityDetectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         detector = Detector(baseContext, MODEL_PATH, LABELS_PATH, this)
@@ -40,9 +45,7 @@ class NativeDetectionActivity : AppCompatActivity(), Detector.DetectorListener {
         if (allPermissionsGranted()) {
             startCamera()
         } else {
-            ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -50,65 +53,88 @@ class NativeDetectionActivity : AppCompatActivity(), Detector.DetectorListener {
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-
         cameraProviderFuture.addListener({
-            cameraProvider = cameraProviderFuture.get()
+            cameraProvider  = cameraProviderFuture.get()
             bindCameraUseCases()
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun bindCameraUseCases() {
-        val provider = cameraProvider ?: return
-        val rotation = binding.viewFinder.display.rotation
+        val cameraProvider = cameraProvider ?: throw IllegalStateException("Camera initialization failed.")
 
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+        val rotation = binding.preview.display.rotation
 
-        preview = Preview.Builder()
+        val cameraSelector = CameraSelector
+            .Builder()
+            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+            .build()
+
+        preview =  Preview.Builder()
+            .setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .setTargetRotation(rotation)
             .build()
 
         imageAnalyzer = ImageAnalysis.Builder()
-            .setTargetRotation(rotation)
+            .setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setTargetRotation(binding.preview.display.rotation)
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
             .build()
 
         imageAnalyzer?.setAnalyzer(cameraExecutor) { imageProxy ->
-            val bmp = Bitmap.createBitmap(
-                imageProxy.width,
-                imageProxy.height,
-                Bitmap.Config.ARGB_8888
-            )
-            bmp.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
-
-            val rotated = Bitmap.createBitmap(
-                bmp, 0, 0, bmp.width, bmp.height,
-                Matrix().apply {
-                    postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-                },
-                true
-            )
-
+            val bitmapBuffer =
+                Bitmap.createBitmap(
+                    imageProxy.width,
+                    imageProxy.height,
+                    Bitmap.Config.ARGB_8888
+                )
+            imageProxy.use { bitmapBuffer.copyPixelsFromBuffer(imageProxy.planes[0].buffer) }
             imageProxy.close()
-            detector.detect(rotated)
+
+            val matrix = Matrix().apply {
+                postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+
+                if (isFrontCamera) {
+                    postScale(
+                        -1f,
+                        1f,
+                        imageProxy.width.toFloat(),
+                        imageProxy.height.toFloat()
+                    )
+                }
+            }
+
+            val rotatedBitmap = Bitmap.createBitmap(
+                bitmapBuffer, 0, 0, bitmapBuffer.width, bitmapBuffer.height,
+                matrix, true
+            )
+
+            detector.detect(rotatedBitmap)
         }
 
-        provider.unbindAll()
-        provider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer)
+        cameraProvider.unbindAll()
 
-        preview?.setSurfaceProvider(binding.viewFinder.surfaceProvider)
-    }
+        try {
+            camera = cameraProvider.bindToLifecycle(
+                this,
+                cameraSelector,
+                preview,
+                imageAnalyzer
+            )
 
-    override fun onDetect(boundingBoxes: List<BoundingBox>, inferenceTime: Long) {
-        runOnUiThread {
-            binding.inferenceTime.text = "${inferenceTime}ms"
-            binding.overlay.setResults(boundingBoxes)
-            binding.overlay.invalidate()
+            preview?.setSurfaceProvider(binding.preview.surfaceProvider)
+        } catch(exc: Exception) {
+            Log.e(TAG, "Use case binding failed", exc)
         }
     }
 
-    override fun onEmptyDetect() {
-        binding.overlay.invalidate()
+    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) {
+        if (it[Manifest.permission.CAMERA] == true) { startCamera() }
     }
 
     override fun onDestroy() {
@@ -117,14 +143,35 @@ class NativeDetectionActivity : AppCompatActivity(), Detector.DetectorListener {
         cameraExecutor.shutdown()
     }
 
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(baseContext, it)
-        == PackageManager.PERMISSION_GRANTED
+    override fun onResume() {
+        super.onResume()
+        if (allPermissionsGranted()){
+            startCamera()
+        } else {
+            requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
+        }
     }
 
     companion object {
+        private const val TAG = "Camera"
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS =
-            arrayOf(Manifest.permission.CAMERA)
+        private val REQUIRED_PERMISSIONS = mutableListOf (
+            Manifest.permission.CAMERA
+        ).toTypedArray()
+    }
+
+    override fun onEmptyDetect() {
+        binding.overlay.invalidate()
+    }
+
+    override fun onDetect(boundingBoxes: List<BoundingBox>, inferenceTime: Long) {
+        runOnUiThread {
+            binding.inferenceTime.text = "${inferenceTime}ms"
+            binding.overlay.apply {
+                setResults(boundingBoxes)
+                invalidate()
+            }
+        }
     }
 }
+

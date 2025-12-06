@@ -1,29 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.drive_mind">
 
     <!-- CAMERA + STORAGE PERMISSIONS -->
+    <uses-feature android:name="android.hardware.camera" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
     <application
+        android:allowBackup="true"
         android:label="drive_mind"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
-
-        <!-- === REQUIRED FOR IMAGE PICKER CAMERA ACCESS === -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
-        <!-- ================================================== -->
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
@@ -45,6 +37,12 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name=".NativeDetectionActivity"
+            android:exported="true"
+            android:label="Object Detection"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
 
         <meta-data
             android:name="flutterEmbedding"
