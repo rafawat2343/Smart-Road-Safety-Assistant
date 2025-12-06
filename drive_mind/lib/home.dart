@@ -1,6 +1,7 @@
 // lib/home.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'detection_screen.dart';
 import 'login.dart';
 import 'profile.dart';
@@ -322,6 +323,25 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDetection() {
+    const platform = MethodChannel("drive_mind/native");
+
+    Future<void> _openNativeActivity() async {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Opening native camera..."),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      try {
+        await platform.invokeMethod("openNativeActivity");
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -332,33 +352,36 @@ class _HomePageState extends State<HomePage> {
             color: Color(0xFFEF4444),
           ),
           const SizedBox(height: 16),
+
           const Text(
             "Start Detection Mode",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
+
           const SizedBox(height: 8),
-          const Text("Open camera to detect lane or traffic violations."),
-          const SizedBox(height: 20),
+          const Text(
+            "Open native camera for traffic/lane violation detection.",
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 24),
 
           ElevatedButton.icon(
             icon: const Icon(Icons.play_arrow_rounded),
             label: const Text("Start Detection"),
-
-            onPressed: () {
-              // Show feedback
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Opening camera and loading YOLOv8 model..."),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-
-              // Go to camera + YOLO detection screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DetectionScreen()),
-              );
-            },
+            onPressed: _openNativeActivity,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
