@@ -37,6 +37,8 @@ dependencies:
   cloud_firestore: ^6.1.0
   camera: ^0.11.3
   image: ^4.5.4
+  geolocator: ^10.1.0
+  share_plus: ^7.2.0
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +68,7 @@ flutter:
     - lib/assets/Splash_3v.png
     - lib/assets/best_float16.tflite
     - lib/assets/labels.txt
+    - lib/assets/Welcome.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

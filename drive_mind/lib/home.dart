@@ -1,11 +1,11 @@
 // lib/home.dart
+import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-//import 'detection_screen.dart';
-import 'login.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'profile.dart';
-//import 'package:image_picker/image_picker.dart';
+import 'login.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,87 +18,112 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   final List<String> _titles = ["Dashboard", "Detection", "Records", "Profile"];
 
+  // 3D tilt animation controllers
+  double tiltX = 0;
+  double tiltY = 0;
+
+  void _startTiltAnimation() {
+    setState(() {
+      tiltX = 0.15;
+      tiltY = -0.15;
+    });
+
+    Future.delayed(const Duration(milliseconds: 120), () {
+      setState(() {
+        tiltX = 0;
+        tiltY = 0;
+      });
+    });
+  }
+
+  // Share Location (Launch Google Maps)
+  Future<void> _shareLocation() async {
+    const lat = 23.8103; // Example—replace with real GPS later
+    const lng = 90.4125;
+
+    final url = "https://www.google.com/maps/search/?api=1&query=$lat,$lng";
+
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Cannot open maps")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // WillPopScope: if not on dashboard, go to dashboard; else allow exit
     return WillPopScope(
       onWillPop: () async {
         if (_selectedIndex != 0) {
           setState(() => _selectedIndex = 0);
           return false;
         }
-        return true; // allow system pop (exit app)
+        return true;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
         appBar: AppBar(
           elevation: 0,
+          centerTitle: true,
           backgroundColor: Colors.white,
           title: Text(
             _titles[_selectedIndex],
             style: const TextStyle(
               color: Color(0xFF1E293B),
-              fontWeight: FontWeight.bold,
               fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          centerTitle: true,
-
-          // FIXED — added comma here ↓
-          leading: (_selectedIndex ==0) ? null:
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-            onPressed: () {
-              setState(() => _selectedIndex = 0);
-            },
-          ),
-
-
+          leading: (_selectedIndex == 0)
+              ? null
+              : IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.black,
+                  ),
+                  onPressed: () => setState(() => _selectedIndex = 0),
+                ),
           actions: _selectedIndex == 3
               ? [
-            IconButton(
-              icon: const Icon(Icons.logout, color: Color(0xFFEF4444)),
-              onPressed: () {
-                FirebaseAuth auth = FirebaseAuth.instance;
-                auth.signOut().then((value) {});
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoginPage(),
+                  IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ]
+                ]
               : null,
         ),
 
+        // Body
         body: _buildBody(),
+
+        // Bottom Navigation Bar
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: const Color(0xFF4ADE80),
-          unselectedItemColor: Colors.grey.shade500,
-          showUnselectedLabels: true,
+          onTap: (i) => setState(() => _selectedIndex = i),
+          selectedItemColor: Colors.green,
+          unselectedItemColor: Colors.grey,
           items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Home"),
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              label: "Home",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.camera_alt_rounded),
+              icon: Icon(Icons.camera_alt),
               label: "Detect",
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded),
+              icon: Icon(Icons.history),
               label: "Records",
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              label: "Profile",
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           ],
         ),
       ),
@@ -120,43 +145,34 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ---------------------- DASHBOARD ----------------------
   Widget _buildDashboard() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(20),
       child: Column(
-        children: [
-          _buildHeaderCard(),
-          const SizedBox(height: 24),
-          _buildQuickActions(),
-          const SizedBox(height: 24),
-          _buildStatCards(),
-        ],
+        children: [_headerCard(), const SizedBox(height: 25), _quickActions()],
       ),
     );
   }
 
-  Widget _buildHeaderCard() {
-    /* your existing widget code */
+  // Header
+  Widget _headerCard() {
     return Container(
+      padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFEF4444), Color(0xFF4ADE80)],
+          colors: [Colors.redAccent, Colors.greenAccent],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.greenAccent.shade100,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
+        boxShadow: const [
+          BoxShadow(color: Colors.greenAccent, blurRadius: 8, spreadRadius: 1),
         ],
       ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Text(
             "Welcome to Drive Mind!",
             style: TextStyle(
@@ -165,7 +181,7 @@ class _HomePageState extends State<HomePage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 10),
           Text(
             "Smarter Roads, Safer Drives.",
             style: TextStyle(color: Colors.white70, fontSize: 16),
@@ -175,232 +191,103 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickActions() {
-    /* your existing widget code */
+  // Animated Quick Action Buttons
+  Widget _quickActions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _quickAction(
-          Icons.camera_alt_rounded,
-          "Detection",
-          const Color(0xFFEF4444),
-          1,
-        ),
-        _quickAction(
-          Icons.history_rounded,
-          "Records",
-          const Color(0xFF2563EB),
-          2,
-        ),
-        _quickAction(
-          Icons.location_on_rounded,
-          "Share Loc",
-          const Color(0xFF4ADE80),
-          null,
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Location shared via Google Maps!")),
-            );
-          },
-        ),
+        _tiltButton(Icons.camera_alt, "Detection", Colors.red, () {
+          setState(() => _selectedIndex = 1);
+        }),
+        _tiltButton(Icons.history, "Records", Colors.blue, () {
+          setState(() => _selectedIndex = 2);
+        }),
+        _tiltButton(Icons.location_on, "Share Loc", Colors.green, () {
+          _shareLocation();
+        }),
       ],
     );
   }
 
-  Widget _quickAction(
+  // 3D Tilt Effect Button
+  Widget _tiltButton(
     IconData icon,
     String label,
     Color color,
-    int? navigateIndex, {
-    VoidCallback? onTap,
-  }) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: () {
-            if (navigateIndex != null) {
-              setState(() => _selectedIndex = navigateIndex);
-            } else {
-              onTap?.call();
-            }
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(2, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(18),
-            child: Icon(icon, color: color, size: 30),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCards() {
-    return Column(
-      children: [
-        _statCard(
-          "Violations Detected Today",
-          "3",
-          Icons.warning_amber_rounded,
-          const Color(0xFFEF4444),
-        ),
-        const SizedBox(height: 16),
-        _statCard(
-          "Safe Driving Score",
-          "92%",
-          Icons.speed_rounded,
-          const Color(0xFF4ADE80),
-        ),
-        const SizedBox(height: 16),
-        _statCard(
-          "Total Reports Sent",
-          "12",
-          Icons.route_rounded,
-          const Color(0xFF2563EB),
-        ),
-      ],
-    );
-  }
-
-  Widget _statCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTapDown: (_) => _startTiltAnimation(),
+      onTapUp: (_) => onTap(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001) // perspective
+          ..rotateX(tiltX)
+          ..rotateY(tiltY),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(3, 5),
+                  ),
+                ],
               ),
+              child: Icon(icon, size: 35, color: color),
             ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  // ---------------------- DETECTION ----------------------
   Widget _buildDetection() {
     const platform = MethodChannel("drive_mind/native");
 
-    Future<void> _openNativeActivity() async {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Opening native camera..."),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
+    Future<void> openNativeActivity() async {
       try {
         await platform.invokeMethod("openNativeActivity");
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error opening camera: $e")));
       }
     }
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.camera_alt_rounded,
-            size: 80,
-            color: Color(0xFFEF4444),
-          ),
-          const SizedBox(height: 16),
-
-          const Text(
-            "Start Detection Mode",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-          const Text(
-            "Open native camera for traffic/lane violation detection.",
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 24),
-
-          ElevatedButton.icon(
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text("Start Detection"),
-            onPressed: _openNativeActivity,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.play_arrow_rounded),
+        label: const Text("Start Detection"),
+        onPressed: openNativeActivity,
       ),
     );
   }
 
+  // ---------------------- RECORDS ----------------------
   Widget _buildRecords() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: const [
         ListTile(
-          leading: Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+          leading: Icon(Icons.warning, color: Colors.red),
           title: Text("Lane violation detected on 11 Nov, 10:25 AM"),
-          subtitle: Text("Captured via Detection Mode"),
         ),
         ListTile(
-          leading: Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+          leading: Icon(Icons.warning, color: Colors.red),
           title: Text("Wrong direction driving - 9 Nov, 3:40 PM"),
-          subtitle: Text("Shared to database"),
         ),
       ],
     );
