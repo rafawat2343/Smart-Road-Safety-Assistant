@@ -3,7 +3,10 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:share_plus/share_plus.dart';
+import 'theme_notifier.dart';
 import 'profile.dart';
 import 'login.dart';
 
@@ -14,46 +17,112 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final List<String> _titles = ["Dashboard", "Detection", "Records", "Profile"];
 
-  // 3D tilt animation controllers
-  double tiltX = 0;
-  double tiltY = 0;
+  // Bounce animation controller
+  late AnimationController _bounceController;
+  late Animation<double> _scaleAnimation;
 
-  void _startTiltAnimation() {
-    setState(() {
-      tiltX = 0.15;
-      tiltY = -0.15;
-    });
+  @override
+  void initState() {
+    super.initState();
 
-    Future.delayed(const Duration(milliseconds: 120), () {
-      setState(() {
-        tiltX = 0;
-        tiltY = 0;
-      });
-    });
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+      lowerBound: 0.88,
+      upperBound: 1.0,
+    );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _bounceController,
+      curve: Curves.easeOutBack,
+    );
   }
 
-  // Share Location (Launch Google Maps)
+  @override
+  void dispose() {
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  // ----------------------- Loader Dialog -----------------------
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 15),
+              Text(
+                "Fetching location...",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ----------------------- Share Location -----------------------
   Future<void> _shareLocation() async {
-    const lat = 23.8103; // Example—replace with real GPS later
-    const lng = 90.4125;
+    _showLoadingDialog();
 
-    final url = "https://www.google.com/maps/search/?api=1&query=$lat,$lng";
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
 
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location permission denied")),
+        );
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      double lat = position.latitude;
+      double lng = position.longitude;
+
+      String link = "https://www.google.com/maps?q=$lat,$lng";
+
+      Navigator.pop(context);
+
+      await Share.share(
+        "📍 My current location:\n$link",
+        subject: "My Live Location",
+      );
+    } catch (e) {
+      Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Cannot open maps")));
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<ThemeNotifier>(context).isDark;
+
     return WillPopScope(
       onWillPop: () async {
         if (_selectedIndex != 0) {
@@ -63,56 +132,48 @@ class _HomePageState extends State<HomePage> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F4F6),
         appBar: AppBar(
-          elevation: 0,
           centerTitle: true,
-          backgroundColor: Colors.white,
-          title: Text(
-            _titles[_selectedIndex],
-            style: const TextStyle(
-              color: Color(0xFF1E293B),
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          title: Text(_titles[_selectedIndex]),
           leading: (_selectedIndex == 0)
               ? null
               : IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new,
-                    color: Colors.black,
-                  ),
+                  icon: const Icon(Icons.arrow_back_ios_new),
                   onPressed: () => setState(() => _selectedIndex = 0),
                 ),
-          actions: _selectedIndex == 3
-              ? [
-                  IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginPage(),
-                        ),
-                      );
-                    },
-                  ),
-                ]
-              : null,
+          actions: [
+            if (_selectedIndex == 3) ...[
+              IconButton(
+                icon: const Icon(Icons.brightness_6),
+                onPressed: () {
+                  Provider.of<ThemeNotifier>(
+                    context,
+                    listen: false,
+                  ).toggleTheme();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.red),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  );
+                },
+              ),
+            ],
+          ],
         ),
 
-        // Body
         body: _buildBody(),
 
-        // Bottom Navigation Bar
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
           onTap: (i) => setState(() => _selectedIndex = i),
-          selectedItemColor: Colors.green,
-          unselectedItemColor: Colors.grey,
+          selectedItemColor: Colors.greenAccent,
+          unselectedItemColor: isDark ? Colors.white54 : Colors.grey,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Home"),
             BottomNavigationBarItem(
@@ -130,6 +191,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ------------------------------ Body Switcher ------------------------------
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
@@ -145,7 +207,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ---------------------- DASHBOARD ----------------------
+  // ------------------------------ Dashboard ------------------------------
   Widget _buildDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -155,7 +217,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Header
   Widget _headerCard() {
     return Container(
       padding: const EdgeInsets.all(25),
@@ -166,9 +227,6 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(color: Colors.greenAccent, blurRadius: 8, spreadRadius: 1),
-        ],
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,40 +249,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Animated Quick Action Buttons
+  // ------------------------------ Quick Buttons ------------------------------
   Widget _quickActions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _tiltButton(Icons.camera_alt, "Detection", Colors.red, () {
+        _bounceButton(Icons.camera_alt, "Detection", Colors.red, () {
           setState(() => _selectedIndex = 1);
         }),
-        _tiltButton(Icons.history, "Records", Colors.blue, () {
+        _bounceButton(Icons.history, "Records", Colors.blue, () {
           setState(() => _selectedIndex = 2);
         }),
-        _tiltButton(Icons.location_on, "Share Loc", Colors.green, () {
-          _shareLocation();
-        }),
+        _bounceButton(
+          Icons.location_on,
+          "Share Loc",
+          Colors.green,
+          _shareLocation,
+        ),
       ],
     );
   }
 
-  // 3D Tilt Effect Button
-  Widget _tiltButton(
+  // ----------------------- Bounce Button -----------------------
+  Widget _bounceButton(
     IconData icon,
     String label,
     Color color,
     VoidCallback onTap,
   ) {
     return GestureDetector(
-      onTapDown: (_) => _startTiltAnimation(),
-      onTapUp: (_) => onTap(),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        transform: Matrix4.identity()
-          ..setEntry(3, 2, 0.001) // perspective
-          ..rotateX(tiltX)
-          ..rotateY(tiltY),
+      onTapDown: (_) {
+        _bounceController.reverse();
+      },
+      onTapUp: (_) {
+        _bounceController.forward();
+        onTap();
+      },
+      child: ScaleTransition(
+        scale: _scaleAnimation,
         child: Column(
           children: [
             Container(
@@ -253,7 +315,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------------------- DETECTION ----------------------
+  // ------------------------------ Detection ------------------------------
   Widget _buildDetection() {
     const platform = MethodChannel("drive_mind/native");
 
@@ -263,7 +325,7 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Error opening camera: $e")));
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     }
 
@@ -276,7 +338,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------------------- RECORDS ----------------------
+  // ------------------------------ Records ------------------------------
   Widget _buildRecords() {
     return ListView(
       padding: const EdgeInsets.all(16),
