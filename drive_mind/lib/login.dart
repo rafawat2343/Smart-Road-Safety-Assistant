@@ -59,10 +59,10 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim());
-      if(!mounted) return;
-
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+      if (!mounted) return;
 
       final user = FirebaseAuth.instance.currentUser;
       await refreshEmailVerification();
@@ -74,8 +74,8 @@ class _LoginPageState extends State<LoginPage> {
             content: Row(
               children: [
                 const Expanded(
-                    child: Text(
-                        "Email not verified. Please check your inbox.")),
+                  child: Text("Email not verified. Please check your inbox."),
+                ),
                 TextButton(
                   onPressed: () async {
                     try {
@@ -87,9 +87,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       );
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Error: $e")),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text("Error: $e")));
                     }
                   },
                   child: const Text(
@@ -107,18 +107,18 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // -------------------- Remember Me --------------------
+      // Only save/overwrite credentials when checkbox is ticked AND login successful
+      // Credentials persist until another user ticks checkbox and logs in successfully
       final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
         await prefs.setBool("remember_me", true);
+        await prefs.setString("saved_email", _emailController.text.trim());
         await prefs.setString(
-            "saved_email", _emailController.text.trim());
-        await prefs.setString(
-            "saved_password", _passwordController.text.trim());
-      } else {
-        await prefs.remove("remember_me");
-        await prefs.remove("saved_email");
-        await prefs.remove("saved_password");
+          "saved_password",
+          _passwordController.text.trim(),
+        );
       }
+      // If checkbox not ticked, do nothing - keep existing saved credentials
 
       SessionController().userId = user!.uid;
 
@@ -134,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } on FirebaseAuthException catch (e) {
-      if(!mounted) return;
+      if (!mounted) return;
       print("LOGIN ERROR: ${e.code}");
       if (e.code == 'user-not-found') {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,16 +145,15 @@ class _LoginPageState extends State<LoginPage> {
           const SnackBar(content: Text('Wrong password provided.')),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.message}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Login failed: ${e.message}')));
       }
     }
   }
 
   bool _isValidEmail(String email) {
-    final emailRegex =
-    RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     return emailRegex.hasMatch(email);
   }
 
@@ -167,16 +166,19 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             _buildHeader(),
             Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Email",
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Text(
+                      "Email",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _emailController,
@@ -198,9 +200,13 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    const Text("Password",
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Text(
+                      "Password",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _passwordController,
@@ -259,7 +265,7 @@ class _LoginPageState extends State<LoginPage> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                const ForgotPasswordPage(),
+                                    const ForgotPasswordPage(),
                               ),
                             );
                           },
@@ -292,9 +298,10 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Text(
                           "Login",
                           style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -317,8 +324,9 @@ class _LoginPageState extends State<LoginPage> {
                               TextSpan(
                                 text: "Sign up",
                                 style: TextStyle(
-                                    color: Color(0xFFFF5252),
-                                    fontWeight: FontWeight.bold),
+                                  color: Color(0xFFFF5252),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -351,23 +359,24 @@ class _LoginPageState extends State<LoginPage> {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.directions_car_rounded,
-                color: Colors.white, size: 80),
+            Icon(Icons.directions_car_rounded, color: Colors.white, size: 80),
             SizedBox(height: 10),
             Text(
               "Sign in",
               style: TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
+                fontSize: 38,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             SizedBox(height: 5),
             Text(
               "Welcome back to DriveMind",
               style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w500),
+                fontSize: 16,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -386,10 +395,18 @@ class BottomWaveClipper extends CustomClipper<Path> {
     var firstEndPoint = Offset(size.width / 2, size.height - 60);
     var secondControlPoint = Offset(3 * size.width / 4, size.height - 120);
     var secondEndPoint = Offset(size.width, size.height - 50);
-    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy,
-        firstEndPoint.dx, firstEndPoint.dy);
-    path.quadraticBezierTo(secondControlPoint.dx, secondControlPoint.dy,
-        secondEndPoint.dx, secondEndPoint.dy);
+    path.quadraticBezierTo(
+      firstControlPoint.dx,
+      firstControlPoint.dy,
+      firstEndPoint.dx,
+      firstEndPoint.dy,
+    );
+    path.quadraticBezierTo(
+      secondControlPoint.dx,
+      secondControlPoint.dy,
+      secondEndPoint.dx,
+      secondEndPoint.dy,
+    );
     path.lineTo(size.width, 0);
     path.close();
     return path;

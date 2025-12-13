@@ -28,8 +28,6 @@ class DriveMindApp extends StatelessWidget {
 
   Future<bool> _hasSeenCarousel() async {
     final prefs = await SharedPreferences.getInstance();
-    // ⚠️ YOU SHOULD REMOVE THIS IN PRODUCTION — forces carousel every time
-    await prefs.clear();
     return prefs.getBool('seen_carousel') ?? false;
   }
 

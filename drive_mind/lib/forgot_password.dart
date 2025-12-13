@@ -1,5 +1,5 @@
 // lib/forgot_password.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
 import 'routes_helper.dart';
@@ -12,21 +12,80 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final _usernameController = TextEditingController();
-  final _answerController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  int _step = 1;
-  String? _selectedQuestion;
-  String? _fetchedQuestion;
-  bool _obscureNewPass = true;
-  bool _obscureConfirmPass = true;
+  final _emailController = TextEditingController();
   bool _loading = false;
+  bool _emailSent = false;
+
+  Future<void> _sendResetEmail() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showSnackBar("Please enter your email address", Colors.red);
+      return;
+    }
+
+    // Basic email validation
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showSnackBar("Please enter a valid email address", Colors.red);
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
+      setState(() {
+        _loading = false;
+        _emailSent = true;
+      });
+
+      _showSnackBar(
+        "Password reset email sent! Check your inbox.",
+        Colors.green,
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() => _loading = false);
+
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = "No account found with this email.";
+          break;
+        case 'invalid-email':
+          message = "Invalid email address.";
+          break;
+        case 'too-many-requests':
+          message = "Too many requests. Please try again later.";
+          break;
+        default:
+          message = e.message ?? "An error occurred. Please try again.";
+      }
+      _showSnackBar(message, Colors.red);
+    } catch (e) {
+      setState(() => _loading = false);
+      _showSnackBar("An error occurred. Please try again.", Colors.red);
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // back -> go to Login (fade)
     return WillPopScope(
       onWillPop: () async {
         Navigator.of(context).pushReplacement(fadeRoute(const LoginPage()));
@@ -37,6 +96,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         body: SingleChildScrollView(
           child: Column(
             children: [
+              // ---------- Top Curved Header ----------
               ClipPath(
                 clipper: BottomWaveClipper(),
                 child: Container(
@@ -47,27 +107,31 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.lock_reset_rounded,
+                        _emailSent
+                            ? Icons.mark_email_read_rounded
+                            : Icons.lock_reset_rounded,
                         color: Colors.white,
                         size: 80,
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Text(
-                        "Forgot Password",
-                        style: TextStyle(
+                        _emailSent ? "Check Your Email" : "Forgot Password",
+                        style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      SizedBox(height: 5),
+                      const SizedBox(height: 5),
                       Text(
-                        "Recover your account securely",
-                        style: TextStyle(
+                        _emailSent
+                            ? "We've sent you a reset link"
+                            : "Reset your password via email",
+                        style: const TextStyle(
                           fontSize: 16,
                           color: Colors.white70,
                           fontWeight: FontWeight.w500,
@@ -78,6 +142,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
               ),
 
+              // ---------- Form Content ----------
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -88,7 +153,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   transitionBuilder: (child, animation) {
                     return FadeTransition(opacity: animation, child: child);
                   },
-                  child: _buildStepContent(context),
+                  child: _emailSent
+                      ? _buildSuccessContent()
+                      : _buildEmailForm(),
                 ),
               ),
             ],
@@ -98,264 +165,179 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  Widget _buildStepContent(BuildContext context) {
-    switch (_step) {
-      case 1:
-        return _buildUsernameStep(context, key: const ValueKey(1));
-      case 2:
-        return _buildSecurityStep(context, key: const ValueKey(2));
-      case 3:
-        return _buildNewPasswordStep(context, key: const ValueKey(3));
-      default:
-        return Container();
-    }
-  }
-
-  // Step 1: username -> fetch security question from Firestore (if exists)
-  Widget _buildUsernameStep(BuildContext context, {Key? key}) {
+  Widget _buildEmailForm() {
     return Column(
-      key: key,
+      key: const ValueKey('email_form'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Username",
+          "Email Address",
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         TextField(
-          controller: _usernameController,
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.person_outline),
-            hintText: "Enter your username",
+            prefixIcon: const Icon(Icons.email_outlined),
+            hintText: "Enter your registered email",
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: const Color.fromARGB(255, 244, 166, 166),
           ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          "We'll send a password reset link to your email address.",
+          style: TextStyle(fontSize: 13, color: Colors.black54),
         ),
         const SizedBox(height: 24),
-        _buildNextButton("Continue", () async {
-          if (_usernameController.text.trim().isEmpty) return;
 
-          // try to fetch question from Firestore where username matches
-          setState(() => _loading = true);
-          try {
-            final query = await FirebaseFirestore.instance
-                .collection('users')
-                .where('username', isEqualTo: _usernameController.text.trim())
-                .limit(1)
-                .get();
-
-            if (query.docs.isNotEmpty) {
-              final doc = query.docs.first;
-              _fetchedQuestion =
-                  (doc.data()['security_question'] as String?) ?? null;
-            } else {
-              // no user found -> _fetchedQuestion remains null and we'll ask generic list (but you asked to fetch and show only selected question)
-              _fetchedQuestion = null;
-            }
-          } catch (e) {
-            _fetchedQuestion = null;
-          }
-          setState(() => _loading = false);
-          setState(() => _step = 2);
-        }),
-        const SizedBox(height: 10),
-        _buildBackToLogin(context),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-      ],
-    );
-  }
-
-  // Step 2: if _fetchedQuestion != null show only that question; else allow selection (fallback)
-  Widget _buildSecurityStep(BuildContext context, {Key? key}) {
-    final List<String> fallbackQuestions = [
-      "What is your favorite color?",
-      "What is your pet's name?",
-      "What city were you born in?",
-      "What is your mother's maiden name?",
-    ];
-
-    return Column(
-      key: key,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Security Question",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        if (_fetchedQuestion != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-              color: Colors.white,
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.question_mark_rounded),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _fetchedQuestion!,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          DropdownButtonFormField<String>(
-            value: _selectedQuestion,
-            items: fallbackQuestions
-                .map((q) => DropdownMenuItem(value: q, child: Text(q)))
-                .toList(),
-            onChanged: (value) => setState(() => _selectedQuestion = value),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
+        // Send Reset Email Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5252),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              prefixIcon: const Icon(Icons.question_mark_rounded),
             ),
+            onPressed: _loading ? null : _sendResetEmail,
+            child: _loading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    "Send Reset Link",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
+        ),
         const SizedBox(height: 16),
-        const Text(
-          "Answer",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _answerController,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.edit_note_rounded),
-            hintText: "Enter your answer",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 24),
-        _buildNextButton("Verify", () {
-          // We are not validating answer against DB now (you asked to use existing reset only)
-          if ((_fetchedQuestion != null || _selectedQuestion != null) &&
-              _answerController.text.trim().isNotEmpty) {
-            setState(() => _step = 3);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please provide an answer')),
-            );
-          }
-        }),
-        const SizedBox(height: 10),
-        _buildBackToLogin(context),
+        _buildBackToLogin(),
       ],
     );
   }
 
-  Widget _buildNewPasswordStep(BuildContext context, {Key? key}) {
+  Widget _buildSuccessContent() {
     return Column(
-      key: key,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      key: const ValueKey('success_content'),
       children: [
-        const Text(
-          "New Password",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _newPasswordController,
-          obscureText: _obscureNewPass,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureNewPass
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Color(0xFFFF8A80),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              onPressed: () =>
-                  setState(() => _obscureNewPass = !_obscureNewPass),
-            ),
-            hintText: "Enter new password",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          "Confirm Password",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _confirmPasswordController,
-          obscureText: _obscureConfirmPass,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirmPass
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+          child: Column(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 60,
               ),
-              onPressed: () =>
-                  setState(() => _obscureConfirmPass = !_obscureConfirmPass),
-            ),
-            hintText: "Re-enter new password",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 16),
+              const Text(
+                "Email Sent Successfully!",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "We've sent a password reset link to:\n${_emailController.text.trim()}",
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "• Check your inbox (and spam folder)\n• Click the reset link in the email\n• Create a new password\n• Come back and login!",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                  height: 1.6,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 24),
-        _buildNextButton("Update Password", () {
-          if (_newPasswordController.text == _confirmPasswordController.text &&
-              _newPasswordController.text.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Password updated successfully!"),
-                backgroundColor: Colors.green,
+
+        // Resend Email Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: const BorderSide(color: Color(0xFFFF5252)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            );
-            Navigator.of(context).pushReplacement(fadeRoute(const LoginPage()));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Passwords do not match!"),
-                backgroundColor: Colors.red,
+            ),
+            onPressed: _loading
+                ? null
+                : () {
+                    setState(() => _emailSent = false);
+                  },
+            child: const Text(
+              "Try Different Email",
+              style: TextStyle(
+                color: Color(0xFFFF5252),
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-            );
-          }
-        }),
-        const SizedBox(height: 10),
-        _buildBackToLogin(context),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Back to Login Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5252),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).pushReplacement(fadeRoute(const LoginPage()));
+            },
+            child: const Text(
+              "Back to Login",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildNextButton(String text, VoidCallback onPressed) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFF5252),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: onPressed,
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackToLogin(BuildContext context) {
+  Widget _buildBackToLogin() {
     return Center(
       child: TextButton(
         onPressed: () {
@@ -373,7 +355,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 }
 
-// BottomWaveClipper same as earlier
+// BottomWaveClipper
 class BottomWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
