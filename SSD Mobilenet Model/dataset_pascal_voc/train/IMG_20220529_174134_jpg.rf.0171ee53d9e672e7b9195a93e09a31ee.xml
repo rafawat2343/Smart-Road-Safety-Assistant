@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG_20220529_174134_jpg.rf.0171ee53d9e672e7b9195a93e09a31ee.jpg</filename>
+	<path>IMG_20220529_174134_jpg.rf.0171ee53d9e672e7b9195a93e09a31ee.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Van</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>73</xmin>
+			<xmax>328</xmax>
+			<ymin>264</ymin>
+			<ymax>360</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

@@ -1,0 +1,55 @@
+<annotation>
+	<folder></folder>
+	<filename>images_-18-2021-04-02-19-05-57_jpeg.rf.de913fe2593d23e1970e1c7975f9253a.jpg</filename>
+	<path>images_-18-2021-04-02-19-05-57_jpeg.rf.de913fe2593d23e1970e1c7975f9253a.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Double decker</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>1</xmin>
+			<xmax>428</xmax>
+			<ymin>73</ymin>
+			<ymax>635</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Double decker</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>176</xmin>
+			<xmax>554</xmax>
+			<ymin>147</ymin>
+			<ymax>610</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Double decker</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>313</xmin>
+			<xmax>633</xmax>
+			<ymin>184</ymin>
+			<ymax>603</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "536708101892",
+    "project_id": "drive-mind-98c9e",
+    "storage_bucket": "drive-mind-98c9e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536708101892:android:157dda6e329bc336734251",
+        "android_client_info": {
+          "package_name": "com.example.drive_mind"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXj4QWwqOqvv4l79IJrVvc0QcRwHLA4cY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

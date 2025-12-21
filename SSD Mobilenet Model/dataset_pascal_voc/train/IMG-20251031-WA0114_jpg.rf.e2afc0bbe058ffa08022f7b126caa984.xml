@@ -1,0 +1,29 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG-20251031-WA0114_jpg.rf.e2afc0bbe058ffa08022f7b126caa984.jpg</filename>
+	<path>IMG-20251031-WA0114_jpg.rf.e2afc0bbe058ffa08022f7b126caa984.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>CNG</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>12</xmin>
+			<xmax>623</xmax>
+			<ymin>136</ymin>
+			<ymax>627</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>

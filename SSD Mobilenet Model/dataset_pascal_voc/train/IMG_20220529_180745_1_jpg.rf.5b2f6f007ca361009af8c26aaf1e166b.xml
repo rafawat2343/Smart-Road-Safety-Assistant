@@ -1,0 +1,42 @@
+<annotation>
+	<folder></folder>
+	<filename>IMG_20220529_180745_1_jpg.rf.5b2f6f007ca361009af8c26aaf1e166b.jpg</filename>
+	<path>IMG_20220529_180745_1_jpg.rf.5b2f6f007ca361009af8c26aaf1e166b.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>Pick-Up Truck</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>260</xmin>
+			<xmax>630</xmax>
+			<ymin>378</ymin>
+			<ymax>515</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Easybike</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>549</xmin>
+			<xmax>641</xmax>
+			<ymin>386</ymin>
+			<ymax>458</ymax>
+		</bndbox>
+	</object>
+	<metadata>
+	</metadata>
+</annotation>
